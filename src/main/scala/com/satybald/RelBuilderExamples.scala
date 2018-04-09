@@ -6,31 +6,30 @@ import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParser
-import org.apache.calcite.tools.{Frameworks, Programs, RelBuilder}
-import org.postgresql.ds.PGSimpleDataSource
+import org.apache.calcite.tools.{FrameworkConfig, Frameworks, Programs, RelBuilder}
 
 class RelBuilderExamples {
-  val config = FoodMartConfig.config.build
+  val config = FoodMartConfig.config()
   val builder: RelBuilder = RelBuilder.create(config)
 
   def unitSalesSum(builder: RelBuilder) = {
-    builder.scan("sales_fact_1998")
-    .scan("customer")
+    builder.scan("public.sales_fact_1998")
+    .scan("public.customer")
     .join(JoinRelType.INNER, "customer_id")
     .filter(builder.call(SqlStdOperatorTable.EQUALS, builder.field("city"), builder.literal("Albany")))
     .sum(false, "sales", builder.field("unit_sales"))
   }
 
   def unitSalesSumByMonth(builder: RelBuilder) = {
-    builder.scan("sales_fact_1998")
-      .scan("time_by_day")
+    builder.scan("public.sales_fact_1998")
+      .scan("public.time_by_day")
       .join(JoinRelType.INNER, "time_id")
       .sum(false, "sales", builder.field("unit_sales"))
   }
 
   def top5UnitSalesSum(builder: RelBuilder) = {
-    builder.scan("sales_fact_1998")
-      .scan("customer")
+    builder.scan("public.sales_fact_1998")
+      .scan("public.customer")
       .join(JoinRelType.INNER, "customer_id")
       .aggregate(
         builder.groupKey("lname"),
@@ -56,26 +55,20 @@ class RelBuilderExamples {
 }
 
 object FoodMartConfig {
-  def dataSource = {
-    val dataSource = new PGSimpleDataSource()
-    dataSource.setServerName("localhost")
-    dataSource.setDatabaseName("foodmart")
-    dataSource.setUser("foodmart")
-    dataSource.setPassword("foodmart")
-    dataSource
-  }
 
   def getSchema(rootSchema: SchemaPlus) = {
-    rootSchema.add("foodmart", JdbcSchema.create(rootSchema, "foodmart", dataSource, "foodmart", "foodmart"))
+    val dataSource = JdbcSchema.dataSource("jdbc:postgresql://localhost/foodmart", "org.postgresql.Driver", "foodmart", "foodmart")
+    rootSchema.add("foodmart", JdbcSchema.create(rootSchema, "foodmart", dataSource, null, null))
   }
 
-  def config(): Frameworks.ConfigBuilder = {
+  def config(): FrameworkConfig = {
     val internalSchema = Frameworks.createRootSchema(true)
-    val rootSchema: SchemaPlus = getSchema(internalSchema)
+    val rootSchema = getSchema(internalSchema)
     Frameworks
       .newConfigBuilder
       .parserConfig(SqlParser.Config.DEFAULT)
       .defaultSchema(rootSchema)
       .programs(Programs.heuristicJoinOrder(Programs.RULE_SET, true, 2))
+      .build()
   }
 }
