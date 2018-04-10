@@ -10,24 +10,24 @@ import org.apache.calcite.tools.{FrameworkConfig, Frameworks, Programs, RelBuild
 
 class RelBuilderExamples {
   val config = FoodMartConfig.config()
-  val builder: RelBuilder = RelBuilder.create(config)
+  def builder: RelBuilder = RelBuilder.create(config)
 
-  def unitSalesSum(builder: RelBuilder) = {
-    builder.scan("public.sales_fact_1998")
-    .scan("public.customer")
-    .join(JoinRelType.INNER, "customer_id")
-    .filter(builder.call(SqlStdOperatorTable.EQUALS, builder.field("city"), builder.literal("Albany")))
-    .sum(false, "sales", builder.field("unit_sales"))
+  def unitSalesSum(builder: RelBuilder): RelNode = {
+    builder.scan("sales_fact_1998")
+      .scan("customer")
+      .join(JoinRelType.INNER, "customer_id")
+      .filter(builder.call(SqlStdOperatorTable.EQUALS, builder.field("city"), builder.literal("Albany")))
+      .sum(false, "sales", builder.field("unit_sales"))
   }
 
-  def unitSalesSumByMonth(builder: RelBuilder) = {
+  def unitSalesSumByMonth(builder: RelBuilder): RelNode = {
     builder.scan("public.sales_fact_1998")
       .scan("public.time_by_day")
       .join(JoinRelType.INNER, "time_id")
       .sum(false, "sales", builder.field("unit_sales"))
   }
 
-  def top5UnitSalesSum(builder: RelBuilder) = {
+  def top5UnitSalesSum(builder: RelBuilder):RelNode = {
     builder.scan("public.sales_fact_1998")
       .scan("public.customer")
       .join(JoinRelType.INNER, "customer_id")
@@ -36,21 +36,19 @@ class RelBuilderExamples {
         builder.sum(false, "sales", builder.field("unit_sales")))
       .filter(builder.call(SqlStdOperatorTable.EQUALS, builder.field("city"), builder.literal("Albany")))
       .sortLimit(0, 5, builder.field("lname"))
+      .build()
   }
 
   def getUnitSalesSum(): RelNode = {
     unitSalesSum(builder)
-    builder.build
   }
 
   def getUnitSalesSumByMonth(): RelNode = {
     unitSalesSumByMonth(builder)
-    builder.build
   }
 
   def getTop5ByMonth(): RelNode = {
     top5UnitSalesSum(builder)
-    builder.build
   }
 }
 
@@ -58,7 +56,7 @@ object FoodMartConfig {
 
   def getSchema(rootSchema: SchemaPlus) = {
     val dataSource = JdbcSchema.dataSource("jdbc:postgresql://localhost/foodmart", "org.postgresql.Driver", "foodmart", "foodmart")
-    rootSchema.add("foodmart", JdbcSchema.create(rootSchema, "foodmart", dataSource, null, null))
+    rootSchema.add("foodmart", JdbcSchema.create(rootSchema, "foodmart", dataSource, "foodmart", null))
   }
 
   def config(): FrameworkConfig = {
